@@ -5,51 +5,48 @@
     <meta charset="utf-8"/>
     <title>Chat Room</title>
 </head>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
 <body>
-    <textarea id="chat-log" cols="100" rows="20"></textarea><br/>
-    <input id="chat-message-input" type="text" size="100"/><br/>
-    <input id="chat-message-submit" type="button" value="Send"/>
+
+    <div id="sine-graph" style="width: 400px; height: 400px;">
 </body>
+
 <script>
     var roomName = {{ room_name_json }};
 
     var chatSocket = new WebSocket(
         'ws://' + window.location.host +
         '/ws/chat/' + roomName + '/');
-
-    chatSocket.onmessage = function(e) {
-        var data = JSON.parse(e.data);
-        var message = data['message'];
-        document.querySelector('#chat-log').value += (message + '\n');
+     var request_data_interval;
+    chatSocket.onopen = function()
+    {
+        // Web Socket is connected, send data using send()
+        chatSocket.send("Message to send");
+        request_data_interval = window.setInterval(requestData, 50);
     };
 
-    chatSocket.onclose = function(e) {
-        console.error('Chat socket closed unexpectedly');
+    chatSocket.onmessage = function (evt)
+    {
+        var received_msg = evt.data;
+        data = JSON.parse(evt.data);
+        var my_plot = {
+            x: data.x,
+            y: data.y,
+            type: 'scatter'
+        };
+        Plotly.newPlot('sine-graph', [my_plot]);
     };
 
-    document.querySelector('#chat-message-input').focus();
-    document.querySelector('#chat-message-input').onkeyup = function(e) {
-        if (e.keyCode === 13) {  // enter, return
-            document.querySelector('#chat-message-submit').click();
-        }
+    chatSocket.onclose = function()
+    {
+      // websocket is closed.
+      window.clearInterval(request_data_interval)
     };
-    /*/    add  a '/' to uncomment this section
-    this one send the message to the  python side websocket and the python side will  echo back the message  and
-    writing it using the first method here :
-     chatSocket.onmessage = function(e) {
-        var data = JSON.parse(e.data);
-        var message = data['message'];
-        document.querySelector('#chat-log').value += (message + '\n');
-    };
-    //*/
-    document.querySelector('#chat-message-submit').onclick = function(e) {
-        var messageInputDom = document.querySelector('#chat-message-input');
-        var message = messageInputDom.value;
-        chatSocket.send(JSON.stringify({
-            'message': message
-        }));
 
-        messageInputDom.value = '';
-    };
+    function requestData()
+    {
+        chatSocket.send("get-data");
+    }
 </script>
 </html>
